@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.eggs/
+build/
+dist/
+
+# 配置（含密钥）
+config.yaml
+
+# 数据产物
+data/matches/*/
+!data/matches/.gitkeep
+
+# 本地
+.DS_Store
+*.log

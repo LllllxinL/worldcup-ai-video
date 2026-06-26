@@ -1,0 +1,55 @@
+[
+  {"beijing": "2026-06-26 04:00", "home": "Ecuador", "away": "Germany", "stage": "group_E"},
+  {"beijing": "2026-06-26 04:00", "home": "Curacao", "away": "Ivory Coast", "stage": "group_E"},
+  {"beijing": "2026-06-26 07:00", "home": "Japan", "away": "Sweden", "stage": "group_F"},
+  {"beijing": "2026-06-26 07:00", "home": "Tunisia", "away": "Netherlands", "stage": "group_F"},
+  {"beijing": "2026-06-26 10:00", "home": "Turkey", "away": "USA", "stage": "group_D"},
+  {"beijing": "2026-06-26 10:00", "home": "Paraguay", "away": "Australia", "stage": "group_D"},
+
+  {"beijing": "2026-06-27 03:00", "home": "Norway", "away": "France", "stage": "group_I"},
+  {"beijing": "2026-06-27 03:00", "home": "Senegal", "away": "Iraq", "stage": "group_I"},
+  {"beijing": "2026-06-27 08:00", "home": "Cape Verde", "away": "Saudi Arabia", "stage": "group_H"},
+  {"beijing": "2026-06-27 08:00", "home": "Uruguay", "away": "Spain", "stage": "group_H"},
+  {"beijing": "2026-06-27 11:00", "home": "Egypt", "away": "Iran", "stage": "group_G"},
+  {"beijing": "2026-06-27 11:00", "home": "New Zealand", "away": "Belgium", "stage": "group_G"},
+
+  {"beijing": "2026-06-28 05:00", "home": "Panama", "away": "England", "stage": "group_L"},
+  {"beijing": "2026-06-28 05:00", "home": "Croatia", "away": "Ghana", "stage": "group_L"},
+  {"beijing": "2026-06-28 07:30", "home": "Colombia", "away": "Portugal", "stage": "group_K"},
+  {"beijing": "2026-06-28 07:30", "home": "DRC", "away": "Uzbekistan", "stage": "group_K"},
+  {"beijing": "2026-06-28 10:00", "home": "Algeria", "away": "Austria", "stage": "group_J"},
+  {"beijing": "2026-06-28 10:00", "home": "Jordan", "away": "Argentina", "stage": "group_J"},
+
+  {"beijing": "2026-06-29 03:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-06-29 08:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-06-30 03:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-06-30 08:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-07-01 03:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-07-01 08:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-07-02 03:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-07-02 08:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-07-03 03:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-07-03 08:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-07-03 11:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+  {"beijing": "2026-07-04 03:00", "home": "TBD", "away": "TBD", "stage": "round32"},
+
+  {"beijing": "2026-07-05 03:00", "home": "TBD", "away": "TBD", "stage": "round16"},
+  {"beijing": "2026-07-05 08:00", "home": "TBD", "away": "TBD", "stage": "round16"},
+  {"beijing": "2026-07-06 03:00", "home": "TBD", "away": "TBD", "stage": "round16"},
+  {"beijing": "2026-07-06 08:00", "home": "TBD", "away": "TBD", "stage": "round16"},
+  {"beijing": "2026-07-07 03:00", "home": "TBD", "away": "TBD", "stage": "round16"},
+  {"beijing": "2026-07-07 08:00", "home": "TBD", "away": "TBD", "stage": "round16"},
+  {"beijing": "2026-07-08 03:00", "home": "TBD", "away": "TBD", "stage": "round16"},
+  {"beijing": "2026-07-08 08:00", "home": "TBD", "away": "TBD", "stage": "round16"},
+
+  {"beijing": "2026-07-10 03:00", "home": "TBD", "away": "TBD", "stage": "quarterfinal"},
+  {"beijing": "2026-07-10 08:00", "home": "TBD", "away": "TBD", "stage": "quarterfinal"},
+  {"beijing": "2026-07-11 03:00", "home": "TBD", "away": "TBD", "stage": "quarterfinal"},
+  {"beijing": "2026-07-12 03:00", "home": "TBD", "away": "TBD", "stage": "quarterfinal"},
+
+  {"beijing": "2026-07-15 03:00", "home": "TBD", "away": "TBD", "stage": "semifinal"},
+  {"beijing": "2026-07-16 03:00", "home": "TBD", "away": "TBD", "stage": "semifinal"},
+
+  {"beijing": "2026-07-19 03:00", "home": "TBD", "away": "TBD", "stage": "third_place"},
+  {"beijing": "2026-07-20 03:00", "home": "TBD", "away": "TBD", "stage": "final"}
+]

@@ -1,0 +1,38 @@
+# loopwc 配置示例。复制为 config.yaml 并填入真实密钥。
+# config.yaml 已在 .gitignore 中，不会提交。
+
+paths:
+  data_dir: data/matches          # 每场比赛工作目录的根
+
+source:
+  base_url: "https://www.txzqzhibo.com"
+  schedule_path: "/football/"     # 赛程/列表页路径（实现时确认）
+
+download:
+  # 三源开发期都试，评估后把最稳的放第一个（主源），其余兜底
+  order: ["xhs", "migu", "cctv"]
+  xhs_cookies_from_browser: ""    # 如 "chrome"/"safari"，yt-dlp 直接读浏览器登录态（最省事）
+  xhs_cookie_file: ""             # 或指定 Netscape 格式 cookies.txt 路径
+
+tts:
+  # 字节火山引擎（豆包语音）
+  appid: ""
+  access_token: ""
+  cluster: "volcano_tts"
+  voice_type: "BV701_streaming"   # 解说/情绪化音色，按需替换
+  encoding: "mp3"
+
+llm:
+  # 文案生成（Anthropic API）
+  api_key: ""                     # 或用环境变量 ANTHROPIC_API_KEY
+  model: "claude-sonnet-4-6"
+
+edit:
+  # Palmier 剪辑 agent（claude-agent-sdk + Palmier MCP）
+  api_key: ""                     # 或用环境变量 ANTHROPIC_API_KEY
+  model: "claude-sonnet-4-6"
+  hook_text: "本场最炸的瞬间，看到最后"   # 开头固定 hook
+  subtitle: true
+
+schedule:
+  cron: "30 23 * * *"             # 每天定时跑 orchestrator（本地时区）
