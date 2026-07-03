@@ -1,4 +1,4 @@
-"""阶段4 · TTS 配音（tts）：script.txt → audio.mp3。
+"""阶段4 · TTS 配音（tts）：script.json segments[].script_sc → audio.mp3。
 
 使用火山引擎豆包语音 V3 WebSocket 双向流式接口（二进制协议）。
 
@@ -17,6 +17,19 @@ from ..config import Config, load_config
 from ..state import Status, load_job, save_job, Job
 
 _WS_URL = "wss://openspeech.bytedance.com/api/v3/tts/bidirection"
+
+
+def _audio_duration(path: str) -> float:
+    import subprocess
+    out = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+         "-of", "default=nw=1:nk=1", path],
+        capture_output=True, text=True,
+    )
+    try:
+        return round(float(out.stdout.strip()), 2)
+    except ValueError:
+        return 0.0
 
 
 async def _synthesize(
@@ -91,7 +104,7 @@ async def _synthesize(
 
 
 def run(match_id: str, cfg: Config) -> dict[str, Any]:
-    """分段合成配音，落盘 audio_intro.mp3 / audio_goal_N.mp3 / audio_outro.mp3，更新 state。"""
+    """分段合成配音，落盘 audio_*.mp3，更新 segment 音频路径和时长，更新 state。"""
     job_dir = cfg.data_dir / match_id
     script_path = job_dir / "script.json"
 
@@ -111,31 +124,34 @@ def run(match_id: str, cfg: Config) -> dict[str, Any]:
     if not api_key or not speaker:
         raise ValueError("config.yaml 缺少 tts.api_key 或 tts.speaker")
 
-    segments: list[dict] = []
+    segments = script.get("segments", [])
+    if not segments:
+        raise ValueError("script.json 中无 segments，请检查 script 阶段")
 
-    # 开头
-    intro_path = job_dir / "audio_intro.mp3"
-    asyncio.run(_synthesize(script["intro"], api_key, speaker, resource_id, model, fmt, sample_rate, intro_path))
-    segments.append({"type": "intro", "path": str(intro_path)})
-    print(f"  ✓ intro ({intro_path.stat().st_size // 1024} KB)")
+    for seg in segments:
+        seg_type = seg["type"]
+        idx = seg.get("idx", 0)
 
-    # 每个进球
-    for g in script.get("goals", []):
-        if not g.get("text"):
+        if seg_type == "intro":
+            filename = "audio_intro.mp3"
+        elif seg_type == "outro":
+            filename = "audio_outro.mp3"
+        elif seg_type == "goal":
+            filename = f"audio_goal_{idx}.mp3"
+        else:
             continue
-        out = job_dir / f"audio_goal_{g['idx']}.mp3"
-        asyncio.run(_synthesize(g["text"], api_key, speaker, resource_id, model, fmt, sample_rate, out))
-        segments.append({"type": "goal", "idx": g["idx"], "minute": g.get("minute", ""), "path": str(out)})
-        print(f"  ✓ goal_{g['idx']} ({out.stat().st_size // 1024} KB)")
 
-    # 结尾
-    outro_path = job_dir / "audio_outro.mp3"
-    asyncio.run(_synthesize(script["outro"], api_key, speaker, resource_id, model, fmt, sample_rate, outro_path))
-    segments.append({"type": "outro", "path": str(outro_path)})
-    print(f"  ✓ outro ({outro_path.stat().st_size // 1024} KB)")
+        text = seg.get("script_sc", "").strip()
+        if not text:
+            raise ValueError(f"segment {seg_type}/{idx} 缺少 script_sc，无法合成配音")
 
-    # 把段落路径写回 script.json
-    script["audio_segments"] = segments
+        out_path = job_dir / filename
+        asyncio.run(_synthesize(text, api_key, speaker, resource_id, model, fmt, sample_rate, out_path))
+        seg["audio_path"] = str(out_path)
+        seg["duration"] = _audio_duration(str(out_path))
+        print(f"  ✓ {filename} ({out_path.stat().st_size // 1024} KB, {seg['duration']}s)")
+
+    # 写回 script.json
     with script_path.open("w", encoding="utf-8") as f:
         json.dump(script, f, ensure_ascii=False, indent=2)
 
@@ -145,7 +161,7 @@ def run(match_id: str, cfg: Config) -> dict[str, Any]:
     job.set_status(Status.TTS_DONE)
     save_job(cfg.data_dir, job)
 
-    total_kb = sum(Path(s["path"]).stat().st_size for s in segments) // 1024
+    total_kb = sum(Path(s["audio_path"]).stat().st_size for s in segments if "audio_path" in s) // 1024
     return {"segments": segments, "total_kb": total_kb}
 
 
@@ -164,4 +180,3 @@ def _main() -> None:
 
 if __name__ == "__main__":
     _main()
-

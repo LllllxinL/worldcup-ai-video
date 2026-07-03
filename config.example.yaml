@@ -15,12 +15,13 @@ download:
   xhs_cookie_file: ""             # 或指定 Netscape 格式 cookies.txt 路径
 
 tts:
-  # 字节火山引擎（豆包语音）
-  appid: ""
-  access_token: ""
-  cluster: "volcano_tts"
-  voice_type: "BV701_streaming"   # 解说/情绪化音色，按需替换
-  encoding: "mp3"
+  # 字节火山引擎（豆包语音 / Seed-TTS）
+  api_key: ""                     # 火山引擎 API Key
+  speaker: ""                     # 音色 ID，如 S_rxx5jtT62
+  resource_id: "seed-icl-2.0"     # 复刻音色用 seed-icl-2.0；官方音色用 seed-tts-2.0
+  model: "seed-tts-2.0-standard"
+  format: "mp3"
+  sample_rate: 24000
 
 llm:
   # 文案生成（Anthropic API）
@@ -30,9 +31,34 @@ llm:
 edit:
   # Palmier 剪辑 agent（claude-agent-sdk + Palmier MCP）
   api_key: ""                     # 或用环境变量 ANTHROPIC_API_KEY
+  base_url: "https://api.anthropic.com"  # 中转站可改为 https://newapi.elevatesphere.com
   model: "claude-sonnet-4-6"
-  hook_text: "本场最炸的瞬间，看到最后"   # 开头固定 hook
+  mcp_url: "http://127.0.0.1:19789/mcp"
+  fps: 25
+  aspect: "9:16"                  # 输出画幅：16:9 横屏 或 9:16 竖屏
+  zoom: 1.4                        # 竖屏模式下轻微放大倍数，用于遮住原片水印/台标
+
+  # 字体（PingFang TC Semibold，繁体字形，中粗体，短视频字幕更清晰）
+  font: "PingFang TC"
+  font_path: "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc"
+  font_index: 10
+
+  # Hook 文字（开头两行短句，繁体）
+  hook: true
+  hook_duration: 3.0
+  hook_font_size: 72
+  hook_bottom_margin: 40
+  hook_text_color: "255,255,0,255"
+  hook_stroke_color: "0,0,0,255"
+  hook_stroke_width: 4
+
+  # 字幕（繁体，画面底部一行）
   subtitle: true
+  subtitle_font_size: 50
+  subtitle_bottom_margin: 30
+  subtitle_text_color: "255,255,255,255"
+  subtitle_stroke_color: "0,0,0,255"
+  subtitle_stroke_width: 3
 
 schedule:
   cron: "30 23 * * *"             # 每天定时跑 orchestrator（本地时区）

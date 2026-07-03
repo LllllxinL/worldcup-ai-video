@@ -45,7 +45,11 @@ _GOAL_KW = re.compile(
 )
 # 破门球员：人名后紧跟动作/位置词（前瞻），避免把"开场/禁区"等当人名
 _PLAYER_RE = re.compile(
-    r"([一-龥]{2,4})(?=开场|在禁区|在中路|在前场|在左|在右|禁区|远射|头球|主罚|一脚|插上|跟进|推射|抽射|凌空|破门|打入|攻门|劲射)"
+    r"([一-龥]{2,4})(?=开场|在禁区|在中路|在前场|在左|在右|禁区|"
+    r"远射|头球|主罚|一脚|插上|跟进|"
+    r"推射|抽射|兜射|捅射|凌空|射门|"
+    r"起脚|停球|调整|摆渡|包抄|"
+    r"破门|打入|攻门|劲射|得分)"
 )
 _PLAYER_STOP = {"球员", "门将", "裁判", "主裁", "后卫", "前锋", "中场",
                 "对方", "双方", "禁区", "开场", "全队", "随后", "最终"}
@@ -82,7 +86,15 @@ def _player_from_text(text: str, blacklist: frozenset[str] = frozenset()) -> str
             continue
         if re.search(r"[0-9一二三四五六七八九十百]", name):
             continue
-        return name
+        # 正则允许 2-4 字，有时会吞掉动作词（如"佩佩包抄破门"匹配到"佩佩包抄"），
+        # 这里把人名尾部的进球动作词截断，保留纯人名。
+        for kw in _GOAL_ACTION_KW:
+            if kw in name:
+                name = name[: name.find(kw)]
+                break
+        name = name.strip()
+        if len(name) >= 2:
+            return name
     return ""
 
 
@@ -161,11 +173,16 @@ def parse(html: str, match_id: str, url: str = "") -> dict[str, Any]:
         if re.match(r"\s*第\d+(?:\+\d+)?分钟", s) and _GOAL_KW.search(s)
     ]
 
-    # 进球：数量以 [进球视频] 条目为准；minute 优先正文进球句，player best-effort
+    # 进球：数量以 [进球视频] 条目为准；minute 优先从匹配到的正文进球句取，
+    # 避免 goal_clips 顺序和正文叙述顺序不一致导致分钟/描述错配。
+    matched_sentences: set[str] = set()
     goals: list[dict[str, Any]] = []
     for i, clip in enumerate(goal_clips, 1):
         desc = clip["desc"]
-        sent = goal_sentences[i - 1] if i - 1 < len(goal_sentences) else ""
+        sent = _match_goal_sentence(desc, goal_sentences, blacklist, used=matched_sentences)
+        if sent:
+            matched_sentences.add(sent)
+        # 如果匹配不到（没有正文进球句），兜底尝试从描述本身取分钟
         minute = _minute_from_text(sent) or _minute_from_text(desc)
         player = _player_from_text(desc, blacklist) or _player_from_text(sent, blacklist)
         goals.append({
@@ -176,6 +193,21 @@ def parse(html: str, match_id: str, url: str = "") -> dict[str, Any]:
             "url": clip["url"],
             "needs_review": not (minute and player),
         })
+
+    # 按比赛分钟排序，确保 goals 顺序与正文叙述/配音分段一致
+    def _goal_sort_key(g: dict[str, Any]) -> int:
+        m = str(g.get("minute", "0"))
+        # 处理 "90+3" 这类加时分钟，取主分钟数
+        base = m.split("+")[0]
+        try:
+            return int(base)
+        except ValueError:
+            return 0
+
+    goals.sort(key=_goal_sort_key)
+    # 重新编号 idx
+    for i, g in enumerate(goals, 1):
+        g["idx"] = i
 
     highlights = [g["desc"] for g in goals] + [e["desc"] for e in events]
 
@@ -253,3 +285,46 @@ def _event_minute(art_text: str, keywords: tuple[str, ...]) -> str:
         if re.match(r"\s*第\d+(?:\+\d+)?分钟", sent) and any(k in sent for k in keywords):
             return _minute_from_text(sent)
     return ""
+
+
+# 用于把 [进球视频] 描述和正文进球句做语义匹配的进球相关关键词
+_GOAL_ACTION_KW = {"直塞", "传中", "挑传", "过顶", "斜塞", "横传",
+                   "兜射", "包抄", "抽射", "劲射", "推射", "捅射",
+                   "头球", "凌空", "破门", "入网", "得分", "进球"}
+
+
+def _match_goal_sentence(clip_desc: str, goal_sentences: list[str], blacklist: frozenset[str], used: set[str] | None = None) -> str:
+    """把单个 [进球视频] 描述与正文里的进球句匹配，返回最相关的句子。
+
+    页面上 [进球视频] 的顺序经常和正文叙述顺序不一致，不能直接按索引对齐。
+    这里用球员名 + 动作关键词的重叠度来匹配。
+    """
+    if not goal_sentences:
+        return ""
+
+    clip_player = _player_from_text(clip_desc, blacklist)
+    best_sent = goal_sentences[0]
+    best_score = -1
+    used = used or set()
+
+    for sent in goal_sentences:
+        score = 0
+
+        # 句子包含描述里的进球球员（最高权重）
+        if clip_player and clip_player in sent:
+            score += 8
+
+        # 共享动作/结果关键词
+        for kw in _GOAL_ACTION_KW:
+            if kw in clip_desc and kw in sent:
+                score += 2
+
+        # 已匹配过的句子降权，避免多个 clip 抢到同一句
+        if sent in used:
+            score -= 10
+
+        if score > best_score:
+            best_score = score
+            best_sent = sent
+
+    return best_sent

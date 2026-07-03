@@ -14,6 +14,11 @@ config.yaml
 # 数据产物
 data/matches/*/
 !data/matches/.gitkeep
+logs/
+reports/
+
+# 第三方依赖
+vendor/
 
 # 本地
 .DS_Store

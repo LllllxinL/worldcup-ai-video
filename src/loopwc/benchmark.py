@@ -1,31 +1,32 @@
-"""LLM Benchmark 测试框架：并行测试多模型视频剪辑效果。
+"""LLM Benchmark 测试框架：串行测试多模型视频剪辑效果。
 
 用法：
     python -m loopwc.benchmark --match-id 144933
 
 功能：
-    1. 并行启动多个模型的剪辑测试
+    1. 串行启动多个模型的剪辑测试（PalmierPro 单文档应用，必须串行）
     2. 每个模型使用独立的项目目录
-    3. 自动记录每个模型的起止时间、状态
-    4. 生成 benchmark_log.json 供后续费用统计
+    3. 每个模型剪辑完成后立即导出，避免项目状态被覆盖
+    4. 自动记录每个模型的起止时间、状态
+    5. 生成 benchmark_log.json 供后续费用统计
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import json
+import os
 import shutil
 import subprocess
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from .config import Config, load_config
-from .stages.edit import _build_prompt, _audio_duration, TEMPLATE
+from .stages.edit import _build_prompt, _audio_duration, _template_for_aspect
 from .state import Status, load_job, save_job, Job
 
 # 项目根目录
@@ -114,23 +115,16 @@ def _now() -> str:
 
 def _build_segments(script: dict) -> list[dict]:
     """从 script.json 构建 segments 列表。"""
-    audio_segments = script.get("audio_segments", [])
-    goals_by_idx = {g["idx"]: g for g in script.get("goals", [])}
+    segs = script.get("segments", [])
     segments: list[dict] = []
-    for s in audio_segments:
-        role = s["type"]
-        if role == "intro":
-            text = script.get("intro", "")
-        elif role == "outro":
-            text = script.get("outro", "")
-        else:
-            text = goals_by_idx.get(s.get("idx", -1), {}).get("text", "")
+    for s in segs:
+        audio_path = s.get("audio_path", "")
         segments.append({
-            "role": role,
-            "text": text,
-            "audio_path": s["path"],
+            "role": s["type"],
+            "text": s.get("script_sc", ""),
+            "audio_path": audio_path,
             "minute": s.get("minute", ""),
-            "duration": _audio_duration(s["path"]),
+            "duration": _audio_duration(audio_path) if audio_path else 0.0,
         })
     return segments
 
@@ -148,10 +142,12 @@ async def _run_agent_with_model(
         TextBlock, ToolUseBlock,
     )
 
-    agent_env: dict[str, str] = {
-        "ANTHROPIC_API_KEY": api_key,
-        "ANTHROPIC_BASE_URL": PROXY_BASE_URL,
-    }
+    agent_env = os.environ.copy()
+    # 清除 Claude Code harness 注入的代理环境变量，确保走配置里的中转站/官方 API
+    agent_env.pop("ANTHROPIC_AUTH_TOKEN", None)
+    agent_env.pop("ANTHROPIC_BASE_URL", None)
+    agent_env["ANTHROPIC_API_KEY"] = api_key
+    agent_env["ANTHROPIC_BASE_URL"] = PROXY_BASE_URL
 
     options = ClaudeAgentOptions(
         mcp_servers={"palmier": {"type": "http", "url": mcp_url}},
@@ -211,14 +207,20 @@ def run_single_model(
         # 构建 prompt
         segments = _build_segments(script)
         fps = int(cfg.get("edit", "fps", default=25))
-        prompt = _build_prompt(video_path, fps, script, segments)
+        aspect = cfg.get("edit", "aspect", default="16:9")
+        width, height = (1920, 1080) if aspect == "16:9" else (1080, 1920)
+        prompt = _build_prompt(
+            video_path, fps, script, segments,
+            aspect=aspect, width=width, height=height,
+        )
 
         # 创建独立项目目录
+        template = _template_for_aspect(aspect)
         safe_model_name = model.replace(".", "_").replace("-", "_")
-        project_path = job_dir / f"project_144933_{safe_model_name}.palmier"
+        project_path = job_dir / f"project_{match_id}_{safe_model_name}.palmier"
         if project_path.exists():
             shutil.rmtree(project_path)
-        shutil.copytree(TEMPLATE, project_path)
+        shutil.copytree(template, project_path)
 
         # 打开项目
         print(f"[{model}] 打开项目: {project_path}", flush=True)
@@ -251,32 +253,21 @@ def run_benchmark(
     match_id: str,
     models: list[str],
     cfg: Config,
-    max_workers: int = 3,
+    max_workers: int = 1,
 ) -> list[BenchmarkRun]:
-    """并行运行多个模型的 benchmark 测试。"""
+    """串行运行多个模型的 benchmark 测试。"""
     log_path = cfg.data_dir / match_id / "benchmark_log.json"
     logger = BenchmarkLogger(log_path)
 
     results: list[BenchmarkRun] = []
 
-    # 使用线程池并行运行
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {
-            executor.submit(run_single_model, match_id, model, cfg, logger): model
-            for model in models
-        }
-
-        for future in as_completed(futures):
-            model = futures[future]
-            try:
-                result = future.result()
-                results.append(result)
-                status_icon = "✓" if result.status == "success" else "✗"
-                print(f"\n{status_icon} {model}: {result.status}", flush=True)
-                if result.error:
-                    print(f"   Error: {result.error}", flush=True)
-            except Exception as e:
-                print(f"\n✗ {model}: 异常 - {e}", flush=True)
+    for model in models:
+        result = run_single_model(match_id, model, cfg, logger)
+        results.append(result)
+        status_icon = "✓" if result.status == "success" else "✗"
+        print(f"\n{status_icon} {model}: {result.status}", flush=True)
+        if result.error:
+            print(f"   Error: {result.error}", flush=True)
 
     return results
 
@@ -285,7 +276,7 @@ def _main() -> None:
     ap = argparse.ArgumentParser(description="LLM Benchmark 测试框架")
     ap.add_argument("--match-id", default="144933", help="比赛 ID，默认 144933")
     ap.add_argument("--models", default="", help="指定模型列表，逗号分隔，默认全部")
-    ap.add_argument("--max-workers", type=int, default=3, help="并行数，默认3")
+    ap.add_argument("--max-workers", type=int, default=1, help="并行数，默认1（必须串行）")
     args = ap.parse_args()
 
     cfg = load_config()

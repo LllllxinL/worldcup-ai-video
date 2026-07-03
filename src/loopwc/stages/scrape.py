@@ -17,6 +17,11 @@ def save_match(data_dir: Path, match: dict[str, Any]) -> Path:
     d = data_dir / match["match_id"]
     d.mkdir(parents=True, exist_ok=True)
     p = d / "match.json"
+    # 保留 download 阶段已写入的本地视频路径，避免 scrape 覆盖后 edit 找不到视频
+    if p.exists():
+        old = json.loads(p.read_text(encoding="utf-8"))
+        if "video_path" in old and "video_path" not in match:
+            match["video_path"] = old["video_path"]
     with p.open("w", encoding="utf-8") as f:
         json.dump(match, f, ensure_ascii=False, indent=2)
     return p
