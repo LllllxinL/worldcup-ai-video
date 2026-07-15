@@ -136,6 +136,8 @@ def run(match_id: str, cfg: Config) -> dict[str, Any]:
             filename = "audio_intro.mp3"
         elif seg_type == "outro":
             filename = "audio_outro.mp3"
+        elif seg_type == "event":
+            filename = f"audio_event_{idx}.mp3"
         elif seg_type == "goal":
             filename = f"audio_goal_{idx}.mp3"
         else:
